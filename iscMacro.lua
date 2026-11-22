@@ -3,7 +3,7 @@
 -- spell or an item.
 -- Every macro uses one template, so editing a template rewrites all of its macros.
 -- Templates are account-wide (iscMacroTemplates), macros per character (iscMacroDB).
--- Type /isc to open the window.
+-- Type /isc or click the minimap button to open the window.
 
 local DEFAULT_ICON = "INV_MISC_QUESTIONMARK" -- lets #showtooltip pick the icon
 local UNKNOWN_ICON = "Interface\\Icons\\" .. DEFAULT_ICON
@@ -908,6 +908,50 @@ local function ToggleUI()
     end
 end
 
+-- Assumes the default round minimap.
+local function PlaceMinimapButton(button)
+    local angle = math.rad(iscMacroDB.minimapAngle or 225)
+    local radius = Minimap:GetWidth() / 2 + 5
+    button:SetPoint("CENTER", Minimap, "CENTER", radius * math.cos(angle), radius * math.sin(angle))
+end
+
+local function FollowCursor(button)
+    local mx, my = Minimap:GetCenter()
+    local px, py = GetCursorPosition()
+    local scale = Minimap:GetEffectiveScale()
+    iscMacroDB.minimapAngle = math.deg(math.atan2(py / scale - my, px / scale - mx)) % 360
+    PlaceMinimapButton(button)
+end
+
+local function CreateMinimapButton()
+    local button = CreateFrame("Button", nil, Minimap)
+    button:SetSize(31, 31)
+    button:SetFrameStrata("MEDIUM")
+    button:SetFrameLevel(8)
+    button:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+    local background = button:CreateTexture(nil, "BACKGROUND")
+    background:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+    background:SetSize(20, 20)
+    background:SetPoint("TOPLEFT", 7, -5)
+    local icon = button:CreateTexture(nil, "ARTWORK")
+    icon:SetTexture("Interface\\Icons\\INV_Misc_Note_01")
+    icon:SetSize(17, 17)
+    icon:SetPoint("TOPLEFT", 7, -6)
+    local border = button:CreateTexture(nil, "OVERLAY")
+    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+    border:SetSize(53, 53)
+    border:SetPoint("TOPLEFT")
+
+    button:RegisterForClicks("LeftButtonUp")
+    button:RegisterForDrag("LeftButton")
+    button:SetScript("OnClick", ToggleUI)
+    button:SetScript("OnDragStart", function(self) self:SetScript("OnUpdate", FollowCursor) end)
+    button:SetScript("OnDragStop", function(self) self:SetScript("OnUpdate", nil) end)
+    button:SetScript("OnEnter", function(self) SimpleTooltip(self, "iscMacro\nClick to open. Drag to move.") end)
+    button:SetScript("OnLeave", GameTooltip_Hide)
+    PlaceMinimapButton(button)
+end
+
 SLASH_ISCMACRO1 = "/iscmacro"
 SLASH_ISCMACRO2 = "/isc"
 SlashCmdList.ISCMACRO = ToggleUI
@@ -921,6 +965,7 @@ frame:SetScript("OnEvent", function(self, event)
         self:UnregisterEvent("PLAYER_ENTERING_WORLD")
         iscMacroTemplates = iscMacroTemplates or { nextId = 2, list = { SEED_TEMPLATE } }
         iscMacroDB = iscMacroDB or { macros = {} }
+        CreateMinimapButton()
         Sync()
     elseif event == "PLAYER_REGEN_ENABLED" and pendingSync then
         Sync()
