@@ -321,7 +321,7 @@ end
 
 local function SimpleTooltip(owner, text)
     GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
-    GameTooltip:SetText(text, 1, 1, 1, true)
+    GameTooltip:SetText(text, 1, 1, 1, 1, true)
     GameTooltip:Show()
 end
 
@@ -924,7 +924,8 @@ local function FollowCursor(button)
 end
 
 local function CreateMinimapButton()
-    local button = CreateFrame("Button", nil, Minimap)
+    -- Button collectors such as MinimapButtonButton only pick up named frames like this one.
+    local button = CreateFrame("Button", "iscMacroMinimapButton", Minimap)
     button:SetSize(31, 31)
     button:SetFrameStrata("MEDIUM")
     button:SetFrameLevel(8)
@@ -947,7 +948,7 @@ local function CreateMinimapButton()
     button:SetScript("OnClick", ToggleUI)
     button:SetScript("OnDragStart", function(self) self:SetScript("OnUpdate", FollowCursor) end)
     button:SetScript("OnDragStop", function(self) self:SetScript("OnUpdate", nil) end)
-    button:SetScript("OnEnter", function(self) SimpleTooltip(self, "iscMacro\nClick to open. Drag to move.") end)
+    button:SetScript("OnEnter", function(self) SimpleTooltip(self, "iscMacro\nClick to open.") end)
     button:SetScript("OnLeave", GameTooltip_Hide)
     PlaceMinimapButton(button)
 end
@@ -957,15 +958,18 @@ SLASH_ISCMACRO2 = "/isc"
 SlashCmdList.ISCMACRO = ToggleUI
 
 local frame = CreateFrame("Frame")
+frame:RegisterEvent("PLAYER_LOGIN")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:RegisterEvent("PLAYER_REGEN_ENABLED")
 frame:SetScript("OnEvent", function(self, event)
-    if event == "PLAYER_ENTERING_WORLD" then
-        -- Nothing that feeds the macros changes between loading screens; login and /reload sync.
-        self:UnregisterEvent("PLAYER_ENTERING_WORLD")
+    if event == "PLAYER_LOGIN" then
         iscMacroTemplates = iscMacroTemplates or { nextId = 2, list = { SEED_TEMPLATE } }
         iscMacroDB = iscMacroDB or { macros = {} }
+        -- Button collectors only scan shortly after login.
         CreateMinimapButton()
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        -- Nothing that feeds the macros changes between loading screens; login and /reload sync.
+        self:UnregisterEvent("PLAYER_ENTERING_WORLD")
         Sync()
     elseif event == "PLAYER_REGEN_ENABLED" and pendingSync then
         Sync()
