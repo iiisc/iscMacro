@@ -1,0 +1,8 @@
+## Interface: 16001
+## Title: iscMacro
+## Notes: Macros generated from shared templates. Edit a template and all its macros update.
+## Version: 2.0
+## SavedVariables: iscMacroTemplates
+## SavedVariablesPerCharacter: iscMacroDB
+
+iscMacro.lua
