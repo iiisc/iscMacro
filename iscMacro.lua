@@ -10,9 +10,30 @@ local UNKNOWN_ICON = "Interface\\Icons\\" .. DEFAULT_ICON
 local MAX_BODY, MAX_NAME = 255, 16
 local MAX_SLOTS = 6 -- the 255-character limit makes more slots per macro impractical
 local PLACEHOLDER = "{([%w_]+)}"
-local SEED_TEMPLATE = {
-    name = "Help / Harm",
-    text = "#showtooltip\n/cast [mod:alt,@player] {friendly}; [harm,nodead] {enemy}; [help,nodead] {friendly}; [@player] {friendly}",
+-- Classic can't cast on focus and @cursor still needs a second click, so neither is used here.
+local DEFAULT_TEMPLATES = {
+    { name = "Help / Harm",
+      text = "#showtooltip\n/cast [mod:alt,@player] {friendly}; [harm,nodead] {enemy}; [help,nodead] {friendly}; [@player] {friendly}" },
+    { name = "Heal (mouseover)",
+      text = "#showtooltip\n/cast [mod:alt,@player] [@mouseover,help,nodead] [help,nodead] [@targettarget,help,nodead] [@player] {heal}" },
+    { name = "Harm (mouseover)",
+      text = "#showtooltip\n/cast [@mouseover,harm,nodead] [harm,nodead] [@targettarget,harm,nodead] {spell}" },
+    { name = "Modifiers",
+      text = "#showtooltip\n/cast [mod:ctrl] {ctrl}; [mod:shift] {shift}; [mod:alt] {alt}; {spell}" },
+    { name = "Don't clip channel",
+      text = "#showtooltip\n/stopmacro [channeling]\n/cast {spell}" },
+    { name = "Interrupt",
+      text = "#showtooltip\n/stopcasting\n/cast {spell}" },
+    { name = "Melee ability",
+      text = "#showtooltip\n/startattack\n/cast {spell}" },
+    { name = "Pet + spell",
+      text = "#showtooltip\n/petattack\n/cast {spell}" },
+    { name = "Trinkets + spell",
+      text = "#showtooltip {spell}\n/use 13\n/use 14\n/cast {spell}" },
+    { name = "Consumable chain",
+      text = "#showtooltip\n/use {first}\n/use {second}" },
+    { name = "Cast sequence",
+      text = "#showtooltip\n/castsequence reset=target {first}, {second}" },
 }
 
 local pendingSync = false
@@ -957,13 +978,29 @@ SLASH_ISCMACRO1 = "/iscmacro"
 SLASH_ISCMACRO2 = "/isc"
 SlashCmdList.ISCMACRO = ToggleUI
 
+-- Each default is offered once, so one the player deleted or renamed doesn't come back.
+local function AddDefaultTemplates()
+    local templates = iscMacroTemplates
+    templates.offered = templates.offered or {}
+    local names = {}
+    for _, template in pairs(templates.list) do names[template.name] = true end
+    for _, default in ipairs(DEFAULT_TEMPLATES) do
+        if not templates.offered[default.name] and not names[default.name] then
+            templates.list[templates.nextId] = { name = default.name, text = default.text }
+            templates.nextId = templates.nextId + 1
+        end
+        templates.offered[default.name] = true
+    end
+end
+
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_LOGIN")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:RegisterEvent("PLAYER_REGEN_ENABLED")
 frame:SetScript("OnEvent", function(self, event)
     if event == "PLAYER_LOGIN" then
-        iscMacroTemplates = iscMacroTemplates or { nextId = 2, list = { SEED_TEMPLATE } }
+        iscMacroTemplates = iscMacroTemplates or { nextId = 1, list = {} }
+        AddDefaultTemplates()
         iscMacroDB = iscMacroDB or { macros = {} }
         -- Button collectors only scan shortly after login.
         CreateMinimapButton()
